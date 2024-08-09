@@ -1,10 +1,11 @@
-import { clx } from "./lib/classnames";
+import { Outlet } from "react-router-dom";
+import { SessionProvider } from "./auth/session-provider";
 
 function App() {
   return (
-    <h1 className={`text-3xl ${clx("font-semibold", "text-red-300")}`}>
-      Hello world!
-    </h1>
+    <SessionProvider>
+      <Outlet />
+    </SessionProvider>
   );
 }
 
