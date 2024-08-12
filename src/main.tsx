@@ -7,18 +7,21 @@ import { LoginPage } from "./pages/login/login.tsx";
 import { HomePage } from "./pages/home/home.tsx";
 import { MePage } from "./pages/me/me.tsx";
 import { DashboardPage } from "./pages/dashboard/dashboard.tsx";
+import { NextUIProvider } from "@nextui-org/react";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/:username" element={<MePage />} />
-        <Route path="/" element={<HomePage />} />
-        <Route path="/dashboard" element={<App />}>
-          <Route index element={<DashboardPage />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
-  </StrictMode>
+    <NextUIProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/:username" element={<MePage />} />
+          <Route path="/" element={<HomePage />} />
+          <Route path="/dashboard" element={<App />}>
+            <Route index element={<DashboardPage />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </NextUIProvider>
+  </StrictMode>,
 );

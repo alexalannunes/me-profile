@@ -15,6 +15,9 @@ interface User extends Omit<SupabaseUser, "user_metadata"> {
     picture: string;
     provider_id: string;
     sub: string;
+
+    //
+    // username?: string;
   };
 }
 

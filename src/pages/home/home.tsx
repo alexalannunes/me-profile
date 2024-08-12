@@ -1,18 +1,15 @@
-import { Link } from "react-router-dom";
+import { Button } from "@nextui-org/react";
 
 export function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col items-center gap-10 bg-slate-100 pt-24">
-      <h1 className="text-center text-4xl font-bold md:text-6xl">
+    <div className="flex min-h-screen flex-col items-center justify-center gap-24 bg-slate-200">
+      <h1 className="text-center text-4xl font-bold md:text-5xl">
         Create your own page
       </h1>
 
-      <Link
-        to={"/login"}
-        className="pointer mt-10 rounded-md bg-blue-600 px-8 py-3 text-xl font-[500] text-white shadow-[0_8px_22px_#2563eb59] hover:bg-blue-700"
-      >
+      <Button size="lg" as={"a"} href="/login" color="primary" variant="shadow">
         Create my page
-      </Link>
+      </Button>
     </div>
   );
 }
