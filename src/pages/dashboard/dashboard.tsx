@@ -75,6 +75,8 @@ export function DashboardPage() {
           setUsername(data);
           usernameRef.current = data;
         }
+      })
+      .then(() => {
         setIsLoading((prev) => ({
           ...prev,
           username: false,
@@ -277,7 +279,7 @@ export function DashboardPage() {
         <Avatar
           name="Alex"
           className="h-[120px] w-[120px] object-contain shadow-md"
-          src={username?.image_path}
+          src={username?.image_path || user?.avatar_url}
           fallback={<CircularProgress aria-label="Loading..." />}
         />
         <h1 className="text-4xl font-semibold">{username?.name}</h1>
