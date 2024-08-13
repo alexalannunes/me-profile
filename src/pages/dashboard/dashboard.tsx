@@ -44,11 +44,16 @@ export function DashboardPage() {
     handleChangeAvatar,
   } = useUserPage();
 
+  const user_id = username.id;
+  const image_path = username.image_path;
+  const has_uploaded_avatar_url = username.has_uploaded_avatar_url;
+  const user_session_id = session?.user.id;
+
   const usernameRef = useRef(username);
 
   const storePreviousUserData = useCallback(async () => {
     const result = await userService.initialStoreUserData(
-      session?.user.id,
+      user_session_id,
       user?.name,
     );
     if (result.error) {
@@ -57,7 +62,7 @@ export function DashboardPage() {
     }
 
     setUsername(result.data as UserPage);
-  }, [session, user?.name, setUsername]);
+  }, [user_session_id, user?.name, setUsername]);
 
   useEffect(() => {
     async function init() {
@@ -82,11 +87,6 @@ export function DashboardPage() {
 
     init();
   }, [session?.user.id, storePreviousUserData, allLoading, reset, setUsername]);
-
-  const user_id = username.id;
-  const image_path = username.image_path;
-  const has_uploaded_avatar_url = username.has_uploaded_avatar_url;
-  const user_session_id = session?.user.id;
 
   useEffect(() => {
     if (
