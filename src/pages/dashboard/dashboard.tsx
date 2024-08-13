@@ -13,6 +13,51 @@ import { UserPage } from "../../data/user-page";
 import { useSupabase } from "../../hooks/use-supabase";
 import { DashboardLayout } from "./layout";
 
+function useMePage() {
+  const supabase = useSupabase();
+
+  const uploadAvatar = async (filename: string, file: Blob) => {
+    const result = await supabase.storage
+      .from("me-profile")
+      // same file name will throw error
+      .upload(`public/${filename}`, file, {
+        // no cache
+        cacheControl: "0",
+      });
+
+    if (result.error) {
+      alert(result.error.message || "Error");
+      console.log(result.error);
+      return;
+    }
+
+    const publicUrl = supabase.storage
+      .from("me-profile")
+      .getPublicUrl(`public/${filename}`).data.publicUrl;
+
+    return {
+      filename,
+      publicUrl,
+    };
+  };
+
+  const saveUserAvatar = async (publicUrl: string, userId: number) => {
+    await supabase
+      .from("usernames")
+      .update({
+        image_path: publicUrl,
+      })
+      .eq("id", userId);
+
+    return publicUrl;
+  };
+
+  return {
+    saveUserAvatar,
+    uploadAvatar,
+  };
+}
+
 export function DashboardPage() {
   const user = useUser();
   const session = useSession();
@@ -21,6 +66,8 @@ export function DashboardPage() {
     id: 0,
     username: "",
     name: user?.name as string,
+    image_path: "",
+    has_uploaded_avatar_url: false,
   });
   const [fileInstance, setFileInstance] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState({
@@ -32,6 +79,8 @@ export function DashboardPage() {
   const usernameRef = useRef(username);
   const inputFileRef = useRef<HTMLInputElement>(null);
   const supabase = useSupabase();
+
+  const page = useMePage();
 
   const storePreviousUserData = useCallback(() => {
     supabase
@@ -63,7 +112,7 @@ export function DashboardPage() {
     }));
     supabase
       .from("usernames")
-      .select("id,username,name,image_path")
+      .select("id,username,name,image_path,has_uploaded_avatar_url")
       .eq("user_id", session?.user.id)
       .then((result) => {
         if (!result.data?.length) {
@@ -85,6 +134,50 @@ export function DashboardPage() {
         }));
       });
   }, [supabase, session?.user.id, storePreviousUserData]);
+
+  const user_id = username.id;
+  const image_path = username.image_path;
+  const has_uploaded_avatar_url = username.has_uploaded_avatar_url;
+  const user_session_id = session?.user.id;
+
+  useEffect(() => {
+    console.log({ username });
+
+    if (
+      user?.avatar_url &&
+      user_id &&
+      !image_path &&
+      !has_uploaded_avatar_url
+    ) {
+      fetch(user.avatar_url)
+        .then((file) => file.blob())
+        .then(async (file) => {
+          const fileData = await page.uploadAvatar(
+            `provider_image_${user_session_id}.jpeg`,
+            file,
+          );
+
+          if (fileData) {
+            await supabase
+              .from("usernames")
+              .update({
+                has_uploaded_avatar_url: true,
+                image_path: fileData.publicUrl,
+              })
+              .eq("id", username.id);
+          }
+        });
+    }
+  }, [
+    user,
+    supabase,
+    user_id,
+    has_uploaded_avatar_url,
+    image_path,
+    page,
+    username,
+    user_session_id,
+  ]);
 
   return (
     <DashboardLayout>
@@ -217,7 +310,7 @@ export function DashboardPage() {
               ref={inputFileRef}
               accept="image/*"
               value={""}
-              onChange={(e) => {
+              onChange={async (e) => {
                 if (e.target.files) {
                   const file = e.target.files[0];
 
@@ -227,45 +320,22 @@ export function DashboardPage() {
                     image: true,
                   }));
 
-                  // change all to async/await
-                  supabase.storage
-                    .from("me-profile")
-                    // same file name will throw error
-                    .upload(`public/${file.name}`, file, {
-                      // no cache
-                      cacheControl: "0",
-                    })
-                    .then((result) => {
-                      if (result.error) {
-                        alert(result.error.message || "Error");
-                        console.log(result.error);
-                        return;
-                      }
+                  const fileData = await page.uploadAvatar(file.name, file);
 
-                      const publicUrl = supabase.storage
-                        .from("me-profile")
-                        .getPublicUrl(`public/${file.name}`).data.publicUrl;
-
-                      supabase
-                        .from("usernames")
-                        .update({
-                          image_path: publicUrl,
-                        })
-                        .eq("id", username.id)
-                        .then(() => {
-                          setIsLoading((prev) => ({
-                            ...prev,
-                            image: false,
-                          }));
-                          setUsername((prev) => ({
-                            ...prev,
-                            image_path: publicUrl,
-                          }));
-                          if (inputFileRef.current) {
-                            inputFileRef.current.value = "";
-                          }
-                        });
-                    });
+                  if (fileData) {
+                    await page.saveUserAvatar(fileData?.publicUrl, username.id);
+                    setIsLoading((prev) => ({
+                      ...prev,
+                      image: false,
+                    }));
+                    setUsername((prev) => ({
+                      ...prev,
+                      image_path: fileData.publicUrl,
+                    }));
+                    if (inputFileRef.current) {
+                      inputFileRef.current.value = "";
+                    }
+                  }
                 }
               }}
               className="hidden"
@@ -289,7 +359,6 @@ export function DashboardPage() {
           as={"a"}
           color="primary"
           variant="shadow"
-          // href={`${user?.username}`}
           href={`${username?.username}`}
         >
           Preview
