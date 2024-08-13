@@ -3,7 +3,7 @@ import {
   User as SupabaseUser,
 } from "@supabase/supabase-js";
 
-interface User extends Omit<SupabaseUser, "user_metadata"> {
+export interface User extends Omit<SupabaseUser, "user_metadata"> {
   user_metadata: {
     avatar_url: string;
     email: string;

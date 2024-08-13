@@ -6,134 +6,82 @@ import {
   Input,
   User,
 } from "@nextui-org/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useSession } from "../../auth/session-context";
 import { useUser } from "../../auth/use-user";
 import { UserPage } from "../../data/user-page";
 import { useSupabase } from "../../hooks/use-supabase";
 import { DashboardLayout } from "./layout";
-
-function useMePage() {
-  const supabase = useSupabase();
-
-  const uploadAvatar = async (filename: string, file: Blob) => {
-    const result = await supabase.storage
-      .from("me-profile")
-      // same file name will throw error
-      .upload(`public/${filename}`, file, {
-        // no cache
-        cacheControl: "0",
-      });
-
-    if (result.error) {
-      alert(result.error.message || "Error");
-      console.log(result.error);
-      return;
-    }
-
-    const publicUrl = supabase.storage
-      .from("me-profile")
-      .getPublicUrl(`public/${filename}`).data.publicUrl;
-
-    return {
-      filename,
-      publicUrl,
-    };
-  };
-
-  const saveUserAvatar = async (publicUrl: string, userId: number) => {
-    await supabase
-      .from("usernames")
-      .update({
-        image_path: publicUrl,
-      })
-      .eq("id", userId);
-
-    return publicUrl;
-  };
-
-  return {
-    saveUserAvatar,
-    uploadAvatar,
-  };
-}
+import { userService } from "./services";
+import { useLoading } from "./use-loading";
+import { useUserPage } from "./use-user-page";
 
 export function DashboardPage() {
   const user = useUser();
   const session = useSession();
 
-  const [username, setUsername] = useState<UserPage>({
-    id: 0,
-    username: "",
-    name: user?.name as string,
-    image_path: "",
-    has_uploaded_avatar_url: false,
-  });
-  const [fileInstance, setFileInstance] = useState<File | null>(null);
-  const [isLoading, setIsLoading] = useState({
-    name: false,
-    username: false,
-    image: false,
-  });
-
-  const usernameRef = useRef(username);
   const inputFileRef = useRef<HTMLInputElement>(null);
   const supabase = useSupabase();
+  const loading = useLoading();
 
-  const page = useMePage();
+  const {
+    setLoadingImage,
+    setLoadingName,
+    setLoadingUsername,
+    reset,
+    allLoading,
+  } = loading;
 
-  const storePreviousUserData = useCallback(() => {
-    supabase
-      .from("usernames")
-      .insert({
-        user_id: session?.user.id,
-        name: user?.name,
-        // apply regex here
-        username: user?.name.toLowerCase().replace(/\s/g, "-"),
-      })
-      .select("id,username,name")
-      .single()
-      .then((result) => {
-        if (result.error) {
-          alert("Error");
-          return;
-        }
+  const {
+    handleChangeName,
+    handleChangeUsername,
+    handleSaveName,
+    handleSaveUsername,
+    username,
+    setUsername,
+    fileInstance,
+    setFileInstance,
+    handleChangeAvatar,
+  } = useUserPage();
 
-        setUsername(result.data as UserPage);
-      });
-  }, [session, supabase, user?.name]);
+  const usernameRef = useRef(username);
+
+  const storePreviousUserData = useCallback(async () => {
+    const result = await userService.initialStoreUserData(
+      session?.user.id,
+      user?.name,
+    );
+    if (result.error) {
+      console.log(result.error);
+      return;
+    }
+
+    setUsername(result.data as UserPage);
+  }, [session, user?.name, setUsername]);
 
   useEffect(() => {
-    setIsLoading((prev) => ({
-      ...prev,
-      username: true,
-      name: true,
-      image: true,
-    }));
-    supabase
-      .from("usernames")
-      .select("id,username,name,image_path,has_uploaded_avatar_url")
-      .eq("user_id", session?.user.id)
-      .then((result) => {
-        if (!result.data?.length) {
-          storePreviousUserData();
-          return;
-        }
-        if (result) {
-          const data = result?.data?.[0] as UserPage;
-          setUsername(data);
-          usernameRef.current = data;
-        }
-      })
-      .then(() => {
-        setIsLoading((prev) => ({
-          ...prev,
-          username: false,
-          name: false,
-          image: false,
-        }));
-      });
-  }, [supabase, session?.user.id, storePreviousUserData]);
+    async function init() {
+      allLoading();
+
+      const result = await userService.getUserData(session?.user.id);
+
+      if (result.error) {
+        console.log("Error", result);
+      }
+
+      if (!result.data?.length) {
+        storePreviousUserData();
+      } else if (result.data) {
+        const data = result?.data?.[0] as UserPage;
+        setUsername(data);
+        usernameRef.current = data;
+      }
+
+      reset();
+    }
+
+    init();
+  }, [session?.user.id, storePreviousUserData, allLoading, reset, setUsername]);
 
   const user_id = username.id;
   const image_path = username.image_path;
@@ -141,32 +89,17 @@ export function DashboardPage() {
   const user_session_id = session?.user.id;
 
   useEffect(() => {
-    console.log({ username });
-
     if (
       user?.avatar_url &&
       user_id &&
       !image_path &&
       !has_uploaded_avatar_url
     ) {
-      fetch(user.avatar_url)
-        .then((file) => file.blob())
-        .then(async (file) => {
-          const fileData = await page.uploadAvatar(
-            `provider_image_${user_session_id}.jpeg`,
-            file,
-          );
-
-          if (fileData) {
-            await supabase
-              .from("usernames")
-              .update({
-                has_uploaded_avatar_url: true,
-                image_path: fileData.publicUrl,
-              })
-              .eq("id", username.id);
-          }
-        });
+      userService.storeAvatarSessionUser(
+        user.avatar_url,
+        user_session_id,
+        user_id,
+      );
     }
   }, [
     user,
@@ -174,7 +107,6 @@ export function DashboardPage() {
     user_id,
     has_uploaded_avatar_url,
     image_path,
-    page,
     username,
     user_session_id,
   ]);
@@ -182,7 +114,7 @@ export function DashboardPage() {
   return (
     <DashboardLayout>
       <div className="w-[320px] border-r border-slate-300">
-        <div className="flex h-16 items-center px-2">
+        <div className="flex h-16 items-center justify-between px-2">
           <User
             name={user?.name}
             description={user?.email}
@@ -190,6 +122,14 @@ export function DashboardPage() {
               src: user?.avatar_url,
             }}
           />
+          <Button
+            onClick={() => supabase.auth.signOut()}
+            color="danger"
+            variant="flat"
+            size="sm"
+          >
+            Logout
+          </Button>
         </div>
         <Divider />
 
@@ -200,32 +140,17 @@ export function DashboardPage() {
               variant="faded"
               label="Username"
               value={username?.name}
-              onChange={(e) =>
-                setUsername((prev) => ({ ...prev, name: e.target.value }))
-              }
+              onChange={(e) => handleChangeName(e.target.value)}
               endContent={
-                isLoading.name && (
+                loading.isNameLoading && (
                   <CircularProgress size="sm" aria-label="Loading..." />
                 )
               }
-              onBlur={() => {
+              onBlur={async () => {
                 if (username?.name.trim() !== usernameRef.current.name.trim()) {
-                  setIsLoading((prev) => ({
-                    ...prev,
-                    name: true,
-                  }));
-                  supabase
-                    .from("usernames")
-                    .update({
-                      name: username?.name.trim(),
-                    })
-                    .eq("id", username.id)
-                    .then(() => {
-                      setIsLoading((prev) => ({
-                        ...prev,
-                        name: false,
-                      }));
-                    });
+                  setLoadingName();
+                  await handleSaveName();
+                  reset();
                 }
               }}
             />
@@ -233,34 +158,21 @@ export function DashboardPage() {
               variant="faded"
               label="Username"
               value={username?.username}
-              onChange={(e) =>
-                setUsername((prev) => ({
-                  ...prev,
-                  username: e.target.value,
-                }))
-              }
+              onChange={(e) => handleChangeUsername(e.target.value)}
               endContent={
-                isLoading.username && (
+                loading.isUsernameLoading && (
                   <CircularProgress size="sm" aria-label="Loading..." />
                 )
               }
-              onBlur={() => {
+              onBlur={async () => {
                 if (
                   username?.username.trim() !==
                   usernameRef.current.username.trim()
                 ) {
-                  setIsLoading((prev) => ({ ...prev, username: true }));
-
-                  supabase
-                    .from("usernames")
-                    .update({
-                      username: username.username.trim(),
-                    })
-                    .eq("id", username.id)
-                    .then(() => {
-                      setIsLoading((prev) => ({ ...prev, username: false }));
-                      usernameRef.current = username;
-                    });
+                  setLoadingUsername();
+                  await handleSaveUsername();
+                  reset();
+                  usernameRef.current = username;
                 }
               }}
             />
@@ -280,7 +192,7 @@ export function DashboardPage() {
               onChange={() => {}}
               value={username.image_path || fileInstance?.name || ""}
               endContent={
-                isLoading.image ? (
+                loading.isImageLoading ? (
                   <CircularProgress size="sm" aria-label="Loading..." />
                 ) : fileInstance?.name ? (
                   <Button
@@ -315,27 +227,10 @@ export function DashboardPage() {
                   const file = e.target.files[0];
 
                   setFileInstance(file);
-                  setIsLoading((prev) => ({
-                    ...prev,
-                    image: true,
-                  }));
+                  setLoadingImage();
 
-                  const fileData = await page.uploadAvatar(file.name, file);
-
-                  if (fileData) {
-                    await page.saveUserAvatar(fileData?.publicUrl, username.id);
-                    setIsLoading((prev) => ({
-                      ...prev,
-                      image: false,
-                    }));
-                    setUsername((prev) => ({
-                      ...prev,
-                      image_path: fileData.publicUrl,
-                    }));
-                    if (inputFileRef.current) {
-                      inputFileRef.current.value = "";
-                    }
-                  }
+                  await handleChangeAvatar(file);
+                  reset();
                 }
               }}
               className="hidden"
@@ -349,7 +244,7 @@ export function DashboardPage() {
         <Avatar
           name="Alex"
           className="h-[120px] w-[120px] object-contain shadow-md"
-          src={username?.image_path || user?.avatar_url}
+          src={username?.image_path}
           fallback={<CircularProgress aria-label="Loading..." />}
         />
         <h1 className="text-4xl font-semibold">{username?.name}</h1>
