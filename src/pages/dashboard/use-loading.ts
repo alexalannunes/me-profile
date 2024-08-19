@@ -4,6 +4,7 @@ interface LoadingState {
   name: boolean;
   username: boolean;
   image: boolean;
+  background: boolean;
 }
 
 type Action =
@@ -17,15 +18,16 @@ function loadingReducer(state: LoadingState, action: Action) {
       name: false,
       username: false,
       image: false,
+      background: false,
       [action.payload]: true,
     };
   }
   if (action.type === "ALL_LOADING") {
-    return { name: true, username: true, image: true };
+    return { name: true, username: true, image: true, background: true };
   }
 
   if (action.type === "RESET") {
-    return { name: false, username: false, image: false };
+    return { name: false, username: false, image: false, background: false };
   }
   return state;
 }
@@ -35,6 +37,7 @@ export function useLoading() {
     name: false,
     username: false,
     image: false,
+    background: false,
   });
 
   const setLoadingName = useCallback(
@@ -52,6 +55,11 @@ export function useLoading() {
     [],
   );
 
+  const setBackgroundImage = useCallback(
+    () => dispatch({ type: "SET_LOADING", payload: "background" }),
+    [],
+  );
+
   const reset = useCallback(() => dispatch({ type: "RESET" }), []);
 
   const allLoading = useCallback(() => dispatch({ type: "ALL_LOADING" }), []);
@@ -59,6 +67,7 @@ export function useLoading() {
   const isNameLoading = isLoading.name;
   const isUsernameLoading = isLoading.username;
   const isImageLoading = isLoading.image;
+  const isBackgroundLoading = isLoading.background;
 
   const value = useMemo(() => {
     return {
@@ -67,19 +76,23 @@ export function useLoading() {
       setLoadingImage,
       setLoadingName,
       setLoadingUsername,
+      setBackgroundImage,
       //
       isImageLoading,
       isNameLoading,
       isUsernameLoading,
+      isBackgroundLoading,
     };
   }, [
     isImageLoading,
     isNameLoading,
     isUsernameLoading,
+    isBackgroundLoading,
     allLoading,
     setLoadingImage,
     setLoadingName,
     setLoadingUsername,
+    setBackgroundImage,
     reset,
   ]);
   return value;

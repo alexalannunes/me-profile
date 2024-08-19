@@ -18,7 +18,7 @@ async function initialStoreUserData(sessionUserId?: string, userName?: string) {
 async function getUserData(sessionUserId?: string) {
   const result = await supabase
     .from("usernames")
-    .select("id,username,name,image_path,has_uploaded_avatar_url")
+    .select("id,username,name,image_path,has_uploaded_avatar_url,background")
     .eq("user_id", sessionUserId);
 
   return result;
@@ -107,6 +107,16 @@ async function saveUsername(userId: number, username: string) {
   return result;
 }
 
+async function saveBackground(userId: number, background: string) {
+  const result = await supabase
+    .from("usernames")
+    .update({
+      background,
+    })
+    .eq("id", userId);
+  return result;
+}
+
 const userService = {
   initialStoreUserData,
   getUserData,
@@ -115,6 +125,7 @@ const userService = {
   uploadAvatar,
   saveName,
   saveUsername,
+  saveBackground,
 };
 
 export { userService };

@@ -14,7 +14,7 @@ export function MePage() {
   useEffect(() => {
     supabase
       .from("usernames")
-      .select("id,username,name,image_path")
+      .select("id,username,name,image_path,background")
       .eq("username", usernameParam)
       .then((result) => {
         if (result) {
@@ -25,7 +25,12 @@ export function MePage() {
   }, [supabase, usernameParam]);
 
   return (
-    <div className="flex min-h-screen flex-1 flex-col items-center justify-center gap-10">
+    <div
+      className="flex min-h-screen flex-1 flex-col items-center justify-center gap-10"
+      style={{
+        background: username?.background || "bg-white",
+      }}
+    >
       {!username ? (
         <CircularProgress label="Loading..." />
       ) : (

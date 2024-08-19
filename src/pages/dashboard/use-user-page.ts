@@ -12,6 +12,7 @@ export function useUserPage() {
     name: user?.name as string,
     image_path: "",
     has_uploaded_avatar_url: false,
+    background: "white",
   });
   const [fileInstance, setFileInstance] = useState<File | null>(null);
 
@@ -50,15 +51,28 @@ export function useUserPage() {
     await userService.saveUsername(username.id, username.username);
   };
 
+  const handleSaveBackground = async (background: string) => {
+    await userService.saveBackground(
+      username.id,
+      background || username.background || "white",
+    );
+  };
+
+  const handleChangeBackground = (background: string) => {
+    setUsername((prev) => ({ ...prev, background }));
+  };
+
   return {
     handleChangeName,
     handleChangeUsername,
     handleSaveName,
     handleSaveUsername,
+    handleSaveBackground,
     username,
     setUsername,
     fileInstance,
     setFileInstance,
     handleChangeAvatar,
+    handleChangeBackground,
   };
 }

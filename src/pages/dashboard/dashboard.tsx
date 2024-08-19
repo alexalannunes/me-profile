@@ -11,6 +11,7 @@ import { useSession } from "../../auth/session-context";
 import { useUser } from "../../auth/use-user";
 import { UserPage } from "../../data/user-page";
 import { useSupabase } from "../../hooks/use-supabase";
+import { clx } from "../../lib/classnames";
 import { DashboardLayout } from "./layout";
 import { userService } from "./services";
 import { useLoading } from "./use-loading";
@@ -28,6 +29,7 @@ export function DashboardPage() {
     setLoadingImage,
     setLoadingName,
     setLoadingUsername,
+    setBackgroundImage,
     reset,
     allLoading,
   } = loading;
@@ -37,11 +39,13 @@ export function DashboardPage() {
     handleChangeUsername,
     handleSaveName,
     handleSaveUsername,
+    handleSaveBackground,
     username,
     setUsername,
     fileInstance,
     setFileInstance,
     handleChangeAvatar,
+    handleChangeBackground,
   } = useUserPage();
 
   const user_id = username.id;
@@ -63,6 +67,13 @@ export function DashboardPage() {
 
     setUsername(result.data as UserPage);
   }, [user_session_id, user?.name, setUsername]);
+
+  const saveBackground = async (background: string) => {
+    handleChangeBackground(background);
+    setBackgroundImage();
+    await handleSaveBackground(background);
+    reset();
+  };
 
   useEffect(() => {
     async function init() {
@@ -236,10 +247,48 @@ export function DashboardPage() {
               className="hidden"
               type="file"
             />
+
+            <span className="mt-1 text-sm font-medium">Background</span>
+            <div className="flex flex-wrap gap-2">
+              {[
+                "#E6F1FE",
+                "#E4D4F4",
+                "#A2E9C1",
+                "#F54180",
+                "#FFB8EB",
+                "#F5A524",
+                "#C3F4FD",
+                "#F4F4F5",
+              ].map((color) => (
+                <div
+                  key={color}
+                  role="button"
+                  onClick={() => {
+                    saveBackground(color);
+                  }}
+                  className={`flex h-10 w-10 cursor-pointer items-center justify-center rounded-md border border-gray-300 transition hover:scale-110`}
+                  style={{
+                    background: color,
+                  }}
+                >
+                  {username.background === color &&
+                    loading.isBackgroundLoading && (
+                      <CircularProgress aria-label={color} size="sm" />
+                    )}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </div>
-      <div className="relative flex flex-1 flex-col items-center justify-center gap-10">
+      <div
+        className={clx(
+          "relative flex flex-1 flex-col items-center justify-center gap-10 bg-white",
+        )}
+        style={{
+          background: username.background || "#fff",
+        }}
+      >
         {/* if user does not change image ? */}
         <Avatar
           name="Alex"
